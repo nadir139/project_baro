@@ -1,0 +1,12 @@
+h1 {
+  color: rgb(69, 69, 234);
+  font-size: 60px;
+}
+
+body {
+  background: grey;
+}
+
+#demo {
+  font-size: 12px;
+}
