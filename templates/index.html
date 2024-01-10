@@ -11,21 +11,29 @@
         <title>City Council Job Comments</title>
     </head>
     <body>
-        <h1>City Council Job Comments</h1>
+        <h1>Comune di Biassono</h1>
+
+        <h2>Lavori in Corso</h2>
 
         <form action="{{ url_for('post_comment') }}" method="post">
-            <label for="comment">Post a Comment:</label>
+            <label for="comment">Pubblica il commento:</label>
+            <br>
             <textarea id="comment" name="comment" required></textarea>
             <br>
-            <button type="submit">Submit</button>
+            <button type="submit">Pubblica</button>
         </form>
 
         <div>
-            <h2>Latest Comments:</h2>
-            {% for comment in comments %}
-                <div class="comment">{{ comment }}</div>
+            <h2>Ultimi Commenti:</h2>
+            {% for comment_data in comments %}
+                <div class="comment">
+                    <p><strong>Commento #{{ loop.index }}:</strong> {{ comment_data[0] }}</p>
+                    <p><em>Pubblicato il {{ comment_data[1].strftime('%Y-%m-%d %H:%M:%S') }}</em></p>
+                    <hr> <!-- Dividing line -->
+                </div>
             {% endfor %}
         </div>
+        
     </body>
     </html>
 
