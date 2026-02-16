@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
 export default function LandingPage() {
@@ -18,10 +21,10 @@ export default function LandingPage() {
               Demo
             </a>
             <Link
-              href="/dashboard"
+              href="/login"
               className="bg-white text-blue-900 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition"
             >
-              Dashboard
+              Accedi
             </Link>
           </div>
         </nav>
@@ -276,30 +279,9 @@ export default function LandingPage() {
       </section>
 
       {/* Demo CTA */}
-      <section id="demo" className="py-20 bg-blue-900 text-white">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <h2 className="text-3xl font-bold mb-4">
-            Prova SpeedLead AI Gratis per 14 Giorni
-          </h2>
-          <p className="text-blue-200 mb-8 text-lg">
-            Nessuna carta di credito richiesta. Setup in 24 ore. Risultati dal
-            primo giorno.
-          </p>
-          <form className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto">
-            <input
-              type="email"
-              placeholder="La tua email aziendale"
-              className="flex-1 px-4 py-3 rounded-lg text-gray-900"
-            />
-            <button
-              type="submit"
-              className="bg-white text-blue-900 px-8 py-3 rounded-lg font-bold hover:bg-blue-50 transition"
-            >
-              Inizia Ora
-            </button>
-          </form>
-        </div>
-      </section>
+      <DemoSection />
+
+      {/* Nav login link */}
 
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 py-12">
@@ -366,5 +348,139 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+function DemoSection() {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
+  const [phone, setPhone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
+  const [showFullForm, setShowFullForm] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/demo-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          name: name || null,
+          company_name: company || null,
+          phone: phone || null,
+          source: "landing_page",
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setSubmitted(true);
+      } else {
+        setError(data.error || "Errore. Riprova.");
+      }
+    } catch {
+      setError("Errore di connessione. Riprova.");
+    }
+    setSubmitting(false);
+  }
+
+  return (
+    <section id="demo" className="py-20 bg-blue-900 text-white">
+      <div className="max-w-3xl mx-auto px-6 text-center">
+        <h2 className="text-3xl font-bold mb-4">
+          Prova SpeedLead AI Gratis per 14 Giorni
+        </h2>
+        <p className="text-blue-200 mb-8 text-lg">
+          Nessuna carta di credito richiesta. Setup in 24 ore. Risultati dal
+          primo giorno.
+        </p>
+
+        {submitted ? (
+          <div className="bg-white/10 backdrop-blur rounded-xl p-8 max-w-lg mx-auto">
+            <div className="text-4xl mb-4">&#10003;</div>
+            <h3 className="text-xl font-bold mb-2">Richiesta Ricevuta!</h3>
+            <p className="text-blue-200">
+              Grazie! Ti contatteremo entro 24 ore per configurare la tua demo
+              personalizzata.
+            </p>
+          </div>
+        ) : (
+          <form
+            onSubmit={handleSubmit}
+            className="max-w-lg mx-auto space-y-4"
+          >
+            {error && (
+              <div className="bg-red-500/20 text-red-200 px-4 py-2 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="La tua email aziendale"
+                className="flex-1 px-4 py-3 rounded-lg text-gray-900"
+              />
+              {!showFullForm && (
+                <button
+                  type="button"
+                  onClick={() => setShowFullForm(true)}
+                  className="bg-white text-blue-900 px-8 py-3 rounded-lg font-bold hover:bg-blue-50 transition"
+                >
+                  Inizia Ora
+                </button>
+              )}
+            </div>
+
+            {showFullForm && (
+              <>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Il tuo nome"
+                    className="px-4 py-3 rounded-lg text-gray-900"
+                  />
+                  <input
+                    type="text"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    placeholder="Nome azienda"
+                    className="px-4 py-3 rounded-lg text-gray-900"
+                  />
+                </div>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Telefono (opzionale)"
+                  className="w-full px-4 py-3 rounded-lg text-gray-900"
+                />
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full bg-white text-blue-900 px-8 py-3 rounded-lg font-bold hover:bg-blue-50 transition disabled:opacity-50"
+                >
+                  {submitting
+                    ? "Invio in corso..."
+                    : "Prenota la Tua Demo Gratuita"}
+                </button>
+              </>
+            )}
+          </form>
+        )}
+      </div>
+    </section>
   );
 }

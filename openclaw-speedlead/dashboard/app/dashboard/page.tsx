@@ -44,12 +44,16 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [voiceActivating, setVoiceActivating] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>("");
 
   const supabase = createBrowserClient();
 
   useEffect(() => {
     loadData();
     setupRealtime();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setUserEmail(data.user.email || "");
+    });
   }, []);
 
   async function loadData() {
@@ -134,7 +138,10 @@ export default function DashboardPage() {
             </h1>
             <p className="text-sm text-gray-500">Gestione lead in tempo reale</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            {userEmail && (
+              <span className="text-sm text-gray-500 mr-2">{userEmail}</span>
+            )}
             <button
               onClick={activateVoice}
               disabled={voiceActivating}
@@ -147,6 +154,15 @@ export default function DashboardPage() {
               className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition"
             >
               Aggiorna
+            </button>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = "/login";
+              }}
+              className="bg-red-50 text-red-600 px-4 py-2 rounded-lg font-medium hover:bg-red-100 transition"
+            >
+              Esci
             </button>
           </div>
         </div>

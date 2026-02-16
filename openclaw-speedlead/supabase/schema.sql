@@ -401,6 +401,128 @@ CREATE POLICY "Users see own client data" ON daily_stats
         client_id = (auth.jwt() ->> 'client_id')
     );
 
+-- ─── DEMO REQUESTS (landing page form) ─────────────────────
+
+CREATE TABLE demo_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT NOT NULL,
+    company_name TEXT,
+    name TEXT,
+    phone TEXT,
+    message TEXT,
+    source TEXT DEFAULT 'landing_page',
+    status TEXT DEFAULT 'new',  -- 'new', 'contacted', 'converted', 'rejected'
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_demo_requests_email ON demo_requests(email);
+CREATE INDEX idx_demo_requests_status ON demo_requests(status);
+CREATE INDEX idx_demo_requests_created ON demo_requests(created_at DESC);
+
+-- No RLS needed - demo_requests is write-only from anon, read-only from service role
+ALTER TABLE demo_requests ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can submit demo request" ON demo_requests
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Service role reads demo requests" ON demo_requests
+    FOR SELECT USING (auth.role() = 'service_role');
+
+-- ─── USER PROFILES (links auth.users to clients) ───────────
+
+CREATE TABLE user_profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    client_id TEXT REFERENCES clients(client_id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    full_name TEXT,
+    role TEXT DEFAULT 'owner',  -- 'owner', 'admin', 'viewer'
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_profiles_client_id ON user_profiles(client_id);
+CREATE INDEX idx_user_profiles_email ON user_profiles(email);
+
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own profile" ON user_profiles
+    FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile" ON user_profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Service role full access" ON user_profiles
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Function to auto-create user profile on signup
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.user_profiles (id, email, full_name, client_id)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data ->> 'full_name', ''),
+        NEW.raw_user_meta_data ->> 'client_id'
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- Update RLS policies for authenticated users to use user_profiles
+-- (More robust than JWT claims - works even if JWT hasn't refreshed)
+DROP POLICY IF EXISTS "Users see own client data" ON leads;
+DROP POLICY IF EXISTS "Users see own client data" ON conversations;
+DROP POLICY IF EXISTS "Users see own client data" ON calls;
+DROP POLICY IF EXISTS "Users see own client data" ON bookings;
+DROP POLICY IF EXISTS "Users see own client data" ON daily_stats;
+
+CREATE POLICY "Users see own client leads" ON leads
+    FOR SELECT USING (
+        client_id IN (
+            SELECT up.client_id FROM user_profiles up WHERE up.id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users see own client conversations" ON conversations
+    FOR SELECT USING (
+        client_id IN (
+            SELECT up.client_id FROM user_profiles up WHERE up.id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users see own client calls" ON calls
+    FOR SELECT USING (
+        client_id IN (
+            SELECT up.client_id FROM user_profiles up WHERE up.id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users see own client bookings" ON bookings
+    FOR SELECT USING (
+        client_id IN (
+            SELECT up.client_id FROM user_profiles up WHERE up.id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users see own client stats" ON daily_stats
+    FOR SELECT USING (
+        client_id IN (
+            SELECT up.client_id FROM user_profiles up WHERE up.id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users see own client info" ON clients
+    FOR SELECT USING (
+        client_id IN (
+            SELECT up.client_id FROM user_profiles up WHERE up.id = auth.uid()
+        )
+    );
+
 -- ─── REALTIME ───────────────────────────────────────────────
 
 -- Enable realtime for live dashboard updates
