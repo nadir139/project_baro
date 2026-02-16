@@ -1,0 +1,37 @@
+# SpeedLead AI - Caddy Reverse Proxy Configuration
+# Auto-HTTPS with Let's Encrypt
+
+{$DOMAIN:localhost} {
+    # OpenClaw Gateway
+    handle /api/* {
+        reverse_proxy openclaw:18789
+    }
+
+    # Voice Bridge (Twilio webhooks)
+    handle /voice/* {
+        reverse_proxy voice-bridge:8765
+    }
+
+    # Webhook Receiver (lead intake)
+    handle /webhook/* {
+        reverse_proxy webhook-receiver:8766
+    }
+
+    # Health check
+    handle /health {
+        respond "OK" 200
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}

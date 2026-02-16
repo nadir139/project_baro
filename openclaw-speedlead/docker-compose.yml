@@ -1,0 +1,110 @@
+# SpeedLead AI - Docker Compose
+# One instance per client. Clone and configure per tenant.
+# Usage: CLIENT_ID=acme docker compose up -d
+
+version: "3.9"
+
+services:
+  # ─── OpenClaw Agent ───────────────────────────────────────────
+  openclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile.openclaw
+    container_name: speedlead-openclaw-${CLIENT_ID:-default}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - CLIENT_ID=${CLIENT_ID:-default}
+      - OPENCLAW_MODEL_PROVIDER=${MODEL_PROVIDER:-anthropic}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+    volumes:
+      - openclaw-data-${CLIENT_ID:-default}:/home/node/.openclaw
+      - ./skills:/home/node/.openclaw/workspace/skills
+      - ./config:/home/node/.openclaw/config
+    ports:
+      - "${OPENCLAW_PORT:-18789}:18789"
+    networks:
+      - speedlead
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18789/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Voice Bridge (Twilio ↔ Deepgram ↔ LLM ↔ Cartesia) ─────
+  voice-bridge:
+    build:
+      context: ./voice-bridge
+      dockerfile: Dockerfile
+    container_name: speedlead-voice-${CLIENT_ID:-default}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - CLIENT_ID=${CLIENT_ID:-default}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - CARTESIA_API_KEY=${CARTESIA_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - OPENCLAW_GATEWAY_URL=http://openclaw:18789
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    ports:
+      - "${VOICE_PORT:-8765}:8765"
+    depends_on:
+      openclaw:
+        condition: service_healthy
+    networks:
+      - speedlead
+
+  # ─── Webhook Receiver (lead intake from forms, CRMs, etc.) ──
+  webhook-receiver:
+    build:
+      context: ./voice-bridge
+      dockerfile: Dockerfile
+    container_name: speedlead-webhooks-${CLIENT_ID:-default}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - CLIENT_ID=${CLIENT_ID:-default}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - OPENCLAW_GATEWAY_URL=http://openclaw:18789
+    command: ["python", "-m", "uvicorn", "webhook_receiver:app", "--host", "0.0.0.0", "--port", "8766"]
+    ports:
+      - "${WEBHOOK_PORT:-8766}:8766"
+    depends_on:
+      openclaw:
+        condition: service_healthy
+    networks:
+      - speedlead
+
+  # ─── Caddy Reverse Proxy (auto HTTPS) ───────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: speedlead-caddy-${CLIENT_ID:-default}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - openclaw
+      - voice-bridge
+    networks:
+      - speedlead
+
+volumes:
+  openclaw-data-default:
+  caddy-data:
+  caddy-config:
+
+networks:
+  speedlead:
+    driver: bridge

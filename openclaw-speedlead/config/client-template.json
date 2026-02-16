@@ -1,0 +1,47 @@
+{
+  "client_id": "",
+  "company_name": "",
+  "sector": "",
+  "agent_name": "Marco",
+  "company_description": "",
+  "products_services": "",
+  "unique_selling_points": "",
+  "target_customers": "",
+  "price_range": "",
+  "owner_phone": "+39...",
+  "owner_email": "",
+  "working_hours": {
+    "start": "08:00",
+    "end": "20:00",
+    "timezone": "Europe/Rome",
+    "days": ["mon", "tue", "wed", "thu", "fri"]
+  },
+  "channels": {
+    "whatsapp": true,
+    "email": true,
+    "voice": false
+  },
+  "crm": {
+    "provider": null,
+    "config": {}
+  },
+  "calendar": {
+    "provider": "calcom",
+    "config": {}
+  },
+  "qualification": {
+    "min_score_for_booking": 70,
+    "auto_book": true,
+    "notify_owner_threshold": 60
+  },
+  "followup": {
+    "enabled": true,
+    "delays_hours": [2, 24, 72, 168],
+    "max_attempts": 4
+  },
+  "gdpr": {
+    "privacy_policy_url": "",
+    "dpa_signed": false,
+    "data_retention_days": 365
+  }
+}

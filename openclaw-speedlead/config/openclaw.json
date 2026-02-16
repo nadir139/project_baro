@@ -1,0 +1,65 @@
+{
+  "$schema": "https://openclaw.ai/schema/config.json",
+  "name": "SpeedLead AI",
+  "version": "1.0.0",
+
+  "model": {
+    "provider": "${MODEL_PROVIDER:-anthropic}",
+    "model": "claude-sonnet-4-20250514",
+    "maxTokens": 4096,
+    "temperature": 0.7
+  },
+
+  "gateway": {
+    "port": 18789,
+    "host": "0.0.0.0"
+  },
+
+  "channels": {
+    "whatsapp": {
+      "enabled": true,
+      "mode": "baileys",
+      "dmPolicy": "allowlist",
+      "allowFrom": [],
+      "mediaMaxMb": 10
+    }
+  },
+
+  "skills": {
+    "load": {
+      "extraDirs": ["/home/node/.openclaw/workspace/skills"]
+    },
+    "enabled": {
+      "speed-to-lead": true,
+      "email-skill": true,
+      "calendar-book": true,
+      "voice-bridge": true,
+      "crm-sync": true
+    }
+  },
+
+  "memory": {
+    "enabled": true,
+    "directory": "/home/node/.openclaw/memory"
+  },
+
+  "heartbeat": {
+    "enabled": true,
+    "intervalMinutes": 5,
+    "tasks": [
+      "check_scheduled_followups",
+      "check_inbox_emails",
+      "sync_crm"
+    ]
+  },
+
+  "browser": {
+    "enabled": false
+  },
+
+  "security": {
+    "allowShellCommands": false,
+    "allowFileAccess": true,
+    "allowNetworkAccess": true
+  }
+}
